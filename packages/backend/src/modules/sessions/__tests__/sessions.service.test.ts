@@ -42,12 +42,6 @@ describe('SessionsService', () => {
   });
 
   afterEach(async () => {
-    // Clean up test data
-    await db.delete(chatMessages);
-    await db.delete(sessions);
-    await db.delete(projects);
-    await db.delete(users);
-
     // Clean up test directory
     try {
       await fs.rm(testProjectPath, { recursive: true, force: true });

@@ -26,8 +26,9 @@ export class FilesService {
   async readFile(input: ReadFileInput): Promise<string> {
     const validPath = await validateAndResolvePath(input.path, this.allowedRoots);
 
-    const content = await fs.readFile(validPath, input.encoding as BufferEncoding);
-    return content;
+    const encoding = (input.encoding as BufferEncoding) || 'utf8';
+    const content = await fs.readFile(validPath, encoding);
+    return content.toString();
   }
 
   /**
@@ -45,53 +46,46 @@ export class FilesService {
   /**
    * List directory contents
    */
-  async listDirectory(dirPath: string): Promise<DirectoryListing> {
-    const validPath = await validateAndResolvePath(dirPath, this.allowedRoots);
+  async listDirectory(input: { path: string }): Promise<Array<{ name: string; type: 'file' | 'directory'; size?: number; createdAt?: Date; modifiedAt?: Date }>> {
+    const validPath = await validateAndResolvePath(input.path, this.allowedRoots);
 
     const entries = await fs.readdir(validPath, { withFileTypes: true });
 
-    const files: FileMetadata[] = await Promise.all(
+    const files = await Promise.all(
       entries.map(async (entry) => {
         const fullPath = path.join(validPath, entry.name);
         const stats = await fs.stat(fullPath);
 
         return {
-          path: fullPath,
           name: entry.name,
+          type: (entry.isDirectory() ? 'directory' : 'file') as 'file' | 'directory',
           size: stats.size,
-          mimeType: entry.isDirectory() ? 'inode/directory' : 'application/octet-stream',
-          isDirectory: entry.isDirectory(),
           createdAt: stats.birthtime,
           modifiedAt: stats.mtime,
         };
       })
     );
 
-    return {
-      path: validPath,
-      files: files.sort((a, b) => {
-        // Directories first, then alphabetical
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        return a.name.localeCompare(b.name);
-      }),
-    };
+    return files.sort((a, b) => {
+      // Directories first, then alphabetical
+      if (a.type === 'directory' && b.type === 'file') return -1;
+      if (a.type === 'file' && b.type === 'directory') return 1;
+      return a.name.localeCompare(b.name);
+    });
   }
 
   /**
    * Get file metadata
    */
-  async getMetadata(filePath: string): Promise<FileMetadata> {
-    const validPath = await validateAndResolvePath(filePath, this.allowedRoots);
+  async getMetadata(input: { path: string }): Promise<{ name: string; type: 'file' | 'directory'; size: number; createdAt: Date; modifiedAt: Date }> {
+    const validPath = await validateAndResolvePath(input.path, this.allowedRoots);
 
     const stats = await fs.stat(validPath);
 
     return {
-      path: validPath,
       name: path.basename(validPath),
+      type: (stats.isDirectory() ? 'directory' : 'file') as 'file' | 'directory',
       size: stats.size,
-      mimeType: stats.isDirectory() ? 'inode/directory' : 'application/octet-stream',
-      isDirectory: stats.isDirectory(),
       createdAt: stats.birthtime,
       modifiedAt: stats.mtime,
     };
@@ -110,6 +104,25 @@ export class FilesService {
         await fs.rm(validPath, { recursive: true });
       } else {
         await fs.rmdir(validPath);
+      }
+    } else {
+      await fs.unlink(validPath);
+    }
+  }
+
+  /**
+   * Delete file or directory (alias for tests)
+   */
+  async deleteFile(input: { path: string; recursive?: boolean }): Promise<void> {
+    const validPath = await validateAndResolvePath(input.path, this.allowedRoots);
+
+    const stats = await fs.stat(validPath);
+
+    if (stats.isDirectory()) {
+      if (input.recursive) {
+        await fs.rm(validPath, { recursive: true });
+      } else {
+        throw new Error('Cannot delete directory without recursive flag');
       }
     } else {
       await fs.unlink(validPath);
@@ -149,6 +162,42 @@ export class FilesService {
             createdAt: stats.birthtime,
             modifiedAt: stats.mtime,
           });
+        }
+
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          await searchRecursive(fullPath);
+        }
+      }
+    }
+
+    await searchRecursive(validPath);
+    return results;
+  }
+
+  /**
+   * Search for files by glob pattern (for tests)
+   */
+  async searchFiles(input: { rootPath: string; pattern: string }): Promise<string[]> {
+    const validPath = await validateAndResolvePath(input.rootPath, this.allowedRoots);
+    const results: string[] = [];
+
+    // Convert glob pattern to regex
+    // Simple glob support: *.txt, **/*.txt
+    let patternRegex = input.pattern
+      .replace(/\./g, '\\.')
+      .replace(/\*\*\//g, '(?:.*/)?' ) // **/ matches any depth including root
+      .replace(/\*/g, '[^/]*');
+    const regex = new RegExp(patternRegex);
+
+    async function searchRecursive(currentPath: string) {
+      const entries = await fs.readdir(currentPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        const relativePath = path.relative(validPath, fullPath);
+
+        if (regex.test(relativePath) || regex.test(entry.name)) {
+          results.push(fullPath);
         }
 
         if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {

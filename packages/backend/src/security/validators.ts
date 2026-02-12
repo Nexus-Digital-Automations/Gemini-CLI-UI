@@ -34,11 +34,9 @@ export const GitBranchNameSchema = z
   .min(1, 'Branch name cannot be empty')
   .max(255, 'Branch name too long')
   .regex(/^[a-zA-Z0-9_\-./]+$/, 'Invalid branch name characters')
-  .transform((branch) =>
-    branch
-      .replace(/\.\.+/g, '.') // Collapse multiple dots
-      .replace(/^[./]|[./]$/g, '') // Remove leading/trailing dots/slashes
-  );
+  .refine((branch) => !branch.includes('..'), 'Branch name cannot contain consecutive dots')
+  .refine((branch) => !branch.startsWith('.') && !branch.startsWith('/'), 'Branch name cannot start with . or /')
+  .refine((branch) => !branch.endsWith('.') && !branch.endsWith('/'), 'Branch name cannot end with . or /');
 
 /**
  * Filename validation schema
@@ -87,7 +85,10 @@ export async function validateAndResolvePath(
   // Check against allowed roots
   const isAllowed = allowedRoots.some((root) => {
     const relative = path.relative(root, parsed);
-    return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+    // Allow exact match (empty string) or subdirectories (no .. or absolute paths)
+    return (
+      relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+    );
   });
 
   if (!isAllowed) {

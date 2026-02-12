@@ -15,6 +15,7 @@ export const CreateProjectSchema = z.object({
  */
 export const UpdateProjectSchema = z.object({
   name: z.string().min(1).max(255).optional(),
+  path: z.string().min(1).optional(),
   description: z.string().max(1000).optional(),
   tags: z.array(z.string()).optional(),
 });

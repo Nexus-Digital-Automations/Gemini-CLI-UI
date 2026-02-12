@@ -17,8 +17,8 @@ describe('GitService', () => {
     testRepo = path.join(os.tmpdir(), `test-git-repo-${Date.now()}`);
     await fs.mkdir(testRepo, { recursive: true });
 
-    // Initialize git repo
-    await execAsync('git init', { cwd: testRepo });
+    // Initialize git repo with 'main' as default branch
+    await execAsync('git init -b main', { cwd: testRepo });
     await execAsync('git config user.name "Test User"', { cwd: testRepo });
     await execAsync('git config user.email "test@example.com"', { cwd: testRepo });
 

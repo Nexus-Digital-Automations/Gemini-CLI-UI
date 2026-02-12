@@ -8,6 +8,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./src/test/setup.ts'],
+    pool: 'forks', // Run tests sequentially to avoid database conflicts
+    poolOptions: {
+      forks: {
+        singleFork: true, // Use single fork for sequential execution
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

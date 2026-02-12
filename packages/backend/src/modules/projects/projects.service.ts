@@ -2,9 +2,19 @@ import { db } from '../../db/index.js';
 import { projects } from '../../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
 import type { CreateProjectInput, UpdateProjectInput, Project } from '@gemini-ui/shared';
-import { validateAndResolvePath } from '../../security/validators.js';
 import fs from 'fs/promises';
 import path from 'path';
+
+/**
+ * Convert database project (null fields) to Project type (undefined fields)
+ */
+function toProject(dbProject: any): Project {
+  return {
+    ...dbProject,
+    description: dbProject.description ?? undefined,
+    tags: dbProject.tags ?? undefined,
+  };
+}
 
 /**
  * Projects service layer
@@ -36,17 +46,18 @@ export class ProjectsService {
       })
       .returning();
 
-    return newProject;
+    return toProject(newProject);
   }
 
   /**
    * Get all projects for a user
    */
   async findAll(userId: string): Promise<Project[]> {
-    return db.query.projects.findMany({
+    const allProjects = await db.query.projects.findMany({
       where: eq(projects.userId, userId),
       orderBy: [desc(projects.lastAccessedAt)],
     });
+    return allProjects.map(toProject);
   }
 
   /**
@@ -67,7 +78,7 @@ export class ProjectsService {
       .set({ lastAccessedAt: new Date() })
       .where(eq(projects.id, projectId));
 
-    return project;
+    return toProject(project);
   }
 
   /**
@@ -84,6 +95,18 @@ export class ProjectsService {
       return null;
     }
 
+    // Validate new path if provided
+    if (input.path) {
+      const normalizedPath = path.resolve(input.path);
+      // Verify path exists
+      try {
+        await fs.access(normalizedPath);
+      } catch {
+        throw new Error('Project path does not exist');
+      }
+      input.path = normalizedPath;
+    }
+
     // Update project
     const [updated] = await db
       .update(projects)
@@ -94,7 +117,7 @@ export class ProjectsService {
       .where(and(eq(projects.id, projectId), eq(projects.userId, userId)))
       .returning();
 
-    return updated || null;
+    return updated ? toProject(updated) : null;
   }
 
   /**
@@ -115,11 +138,11 @@ export class ProjectsService {
   async getRecent(userId: string, limit = 10): Promise<Project[]> {
     const allProjects = await db.query.projects.findMany({
       where: eq(projects.userId, userId),
-      orderBy: [desc(projects.lastAccessedAt)],
+      orderBy: [desc(projects.lastAccessedAt), desc(projects.createdAt)],
       limit,
     });
 
-    return allProjects;
+    return allProjects.map(toProject);
   }
 
   /**

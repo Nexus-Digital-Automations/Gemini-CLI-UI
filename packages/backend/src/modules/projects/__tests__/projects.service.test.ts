@@ -31,10 +31,6 @@ describe('ProjectsService', () => {
   });
 
   afterEach(async () => {
-    // Clean up test data
-    await db.delete(projects);
-    await db.delete(users);
-
     // Clean up test directory
     try {
       await fs.rm(testProjectPath, { recursive: true, force: true });
@@ -287,18 +283,27 @@ describe('ProjectsService', () => {
 
   describe('getRecent', () => {
     beforeEach(async () => {
-      // Create projects with delays to ensure different timestamps
-      await projectsService.create(testUserId, {
+      // Create old project
+      const oldProject = await projectsService.create(testUserId, {
         name: 'Old Project',
         path: testProjectPath,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      await projectsService.create(testUserId, {
+      // Create recent project
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const recentProject = await projectsService.create(testUserId, {
         name: 'Recent Project',
         path: testProjectPath,
       });
+
+      // Update old project's lastAccessedAt to be old
+      const oldTime = new Date(Date.now() - 1000); // 1 second ago
+      await db
+        .update(projects)
+        .set({ lastAccessedAt: oldTime })
+        .where(eq(projects.id, oldProject.id));
+
+      // Recent project already has current time, no need to update
     });
 
     it('should return recent projects in descending order', async () => {

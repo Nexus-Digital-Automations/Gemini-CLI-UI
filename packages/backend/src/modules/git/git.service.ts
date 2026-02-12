@@ -14,17 +14,14 @@ export class GitService {
    */
   private async execGit(cwd: string, command: string): Promise<string> {
     try {
-      const { stdout, stderr } = await execAsync(`git ${command}`, {
+      const { stdout } = await execAsync(`git ${command}`, {
         cwd,
         timeout: 30000, // 30 second timeout
         maxBuffer: 10 * 1024 * 1024, // 10MB buffer
       });
 
-      if (stderr && !stderr.includes('warning')) {
-        throw new Error(stderr);
-      }
-
-      return stdout.trim();
+      // Only trim trailing whitespace - leading spaces are significant in git status
+      return stdout.trimEnd();
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Git command failed: ${error.message}`);
@@ -63,17 +60,28 @@ export class GitService {
     const conflicted: string[] = [];
 
     for (const line of lines) {
-      const statusCode = line.substring(0, 2);
+      // Git status --porcelain format: XY filename
+      // X = index status, Y = working tree status
+      // Ensure line has at least 3 characters (XY + space + filename)
+      if (line.length < 3) continue;
+
+      const X = line[0];
+      const Y = line[1];
       const filePath = line.substring(3);
 
-      if (statusCode.includes('U') || statusCode.includes('A') && statusCode.includes('A')) {
-        conflicted.push(filePath);
-      } else if (statusCode[0] !== ' ' && statusCode[0] !== '?') {
-        staged.push(filePath);
-      } else if (statusCode[1] !== ' ' && statusCode[1] !== '?') {
-        unstaged.push(filePath);
-      } else if (statusCode === '??') {
+      if (X === '?' && Y === '?') {
         untracked.push(filePath);
+      } else if (X === 'U' || Y === 'U' || (X === 'A' && Y === 'A') || (X === 'D' && Y === 'D')) {
+        conflicted.push(filePath);
+      } else {
+        // Check index (X)
+        if (X !== ' ' && X !== '?') {
+          staged.push(filePath);
+        }
+        // Check working tree (Y)
+        if (Y !== ' ' && Y !== '?') {
+          unstaged.push(filePath);
+        }
       }
     }
 
@@ -82,6 +90,7 @@ export class GitService {
       ahead,
       behind,
       staged,
+      modified: unstaged, // Alias for compatibility
       unstaged,
       untracked,
       conflicted,
@@ -145,10 +154,23 @@ export class GitService {
   }
 
   /**
+   * Create branch (alias for branch method)
+   */
+  async createBranch(repoPath: string, input: GitBranchInput): Promise<void> {
+    await this.branch(repoPath, input);
+  }
+
+  /**
    * Get diff
    */
-  async diff(repoPath: string, staged = false): Promise<string> {
-    const command = staged ? 'diff --cached' : 'diff';
+  async diff(repoPath: string, files?: string[], staged = false): Promise<string> {
+    let command = staged ? 'diff --cached' : 'diff';
+
+    if (files && files.length > 0) {
+      const fileList = files.map(f => `"${f.replace(/"/g, '\\"')}"`).join(' ');
+      command += ` ${fileList}`;
+    }
+
     return this.execGit(repoPath, command);
   }
 

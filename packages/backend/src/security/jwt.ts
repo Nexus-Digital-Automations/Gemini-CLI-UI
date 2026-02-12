@@ -69,6 +69,7 @@ export function generateAccessToken(
       userId: options.userId,
       username: options.username,
       type: 'access' as const,
+      jti: crypto.randomBytes(16).toString('hex'), // Unique token ID
     },
     JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
@@ -85,6 +86,7 @@ export function generateRefreshToken(
     {
       userId: options.userId,
       type: 'refresh' as const,
+      jti: crypto.randomBytes(16).toString('hex'), // Unique token ID
     },
     JWT_SECRET,
     { expiresIn: REFRESH_TOKEN_EXPIRY }

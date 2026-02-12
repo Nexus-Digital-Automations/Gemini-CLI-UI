@@ -3,6 +3,7 @@ import { db } from '../../db/index.js';
 import { users, refreshTokens } from '../../db/schema.js';
 import { generateTokenPair, verifyToken } from '../../security/jwt.js';
 import { eq } from 'drizzle-orm';
+import { LoginSchema, RegisterSchema } from '@gemini-ui/shared';
 import type { LoginInput, RegisterInput, AuthResponse } from '@gemini-ui/shared';
 
 const SALT_ROUNDS = 12;
@@ -16,9 +17,12 @@ export class AuthService {
    * Register a new user
    */
   async register(input: RegisterInput): Promise<AuthResponse> {
+    // Validate input
+    const validatedInput = RegisterSchema.parse(input);
+
     // Check if user already exists
     const existingUser = await db.query.users.findFirst({
-      where: eq(users.username, input.username),
+      where: eq(users.username, validatedInput.username),
     });
 
     if (existingUser) {
@@ -26,13 +30,13 @@ export class AuthService {
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(validatedInput.password, SALT_ROUNDS);
 
     // Create user
     const [newUser] = await db
       .insert(users)
       .values({
-        username: input.username,
+        username: validatedInput.username,
         passwordHash,
       })
       .returning();
@@ -58,9 +62,12 @@ export class AuthService {
    * Login existing user
    */
   async login(input: LoginInput): Promise<AuthResponse> {
+    // Validate input
+    const validatedInput = LoginSchema.parse(input);
+
     // Find user
     const user = await db.query.users.findFirst({
-      where: eq(users.username, input.username),
+      where: eq(users.username, validatedInput.username),
     });
 
     if (!user || !user.isActive) {
@@ -68,7 +75,7 @@ export class AuthService {
     }
 
     // Verify password
-    const isValid = await bcrypt.compare(input.password, user.passwordHash);
+    const isValid = await bcrypt.compare(validatedInput.password, user.passwordHash);
     if (!isValid) {
       throw new Error('Invalid credentials');
     }

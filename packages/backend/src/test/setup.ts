@@ -1,6 +1,7 @@
-import { beforeAll, afterAll } from 'vitest';
+import { beforeAll, afterAll, afterEach } from 'vitest';
 import { db } from '../db/index.js';
 import { sql } from 'drizzle-orm';
+import { users, projects, sessions, chatMessages, refreshTokens } from '../db/schema.js';
 
 // Create all tables before running tests
 beforeAll(async () => {
@@ -24,8 +25,10 @@ beforeAll(async () => {
       name TEXT NOT NULL,
       path TEXT NOT NULL,
       description TEXT,
+      tags TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
+      last_accessed_at INTEGER NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
@@ -71,12 +74,17 @@ beforeAll(async () => {
   `);
 });
 
-// Clean up after all tests
-afterAll(async () => {
-  // Drop all tables
-  await db.run(sql`DROP TABLE IF EXISTS chat_messages`);
-  await db.run(sql`DROP TABLE IF EXISTS sessions`);
-  await db.run(sql`DROP TABLE IF EXISTS refresh_tokens`);
-  await db.run(sql`DROP TABLE IF EXISTS projects`);
-  await db.run(sql`DROP TABLE IF EXISTS users`);
+// Clean up data after each test to prevent cross-test contamination
+afterEach(async () => {
+  try {
+    // Delete in order to respect foreign key constraints
+    await db.delete(chatMessages);
+    await db.delete(sessions);
+    await db.delete(refreshTokens);
+    await db.delete(projects);
+    await db.delete(users);
+  } catch (error) {
+    // Ignore errors during cleanup
+    console.warn('Cleanup warning:', error);
+  }
 });

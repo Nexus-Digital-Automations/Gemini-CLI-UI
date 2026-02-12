@@ -31,6 +31,7 @@ export interface GitStatus {
   ahead: number;
   behind: number;
   staged: string[];
+  modified: string[]; // Alias for unstaged
   unstaged: string[];
   untracked: string[];
   conflicted: string[];

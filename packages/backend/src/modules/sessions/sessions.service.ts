@@ -21,22 +21,28 @@ export class SessionsService {
       .values({
         userId,
         projectPath: input.projectPath,
-        geminiSessionId: input.geminiSessionId,
-        metadata: input.metadata,
+        geminiSessionId: input.geminiSessionId || null,
+        metadata: input.metadata || null,
       })
       .returning();
 
-    return newSession;
+    return newSession as Session;
   }
 
   /**
    * Get all sessions for a user
    */
   async findAll(userId: string): Promise<Session[]> {
-    return db.query.sessions.findMany({
+    const results = await db.query.sessions.findMany({
       where: eq(sessions.userId, userId),
       orderBy: [desc(sessions.lastAccessedAt)],
     });
+
+    return results.map(session => ({
+      ...session,
+      geminiSessionId: session.geminiSessionId ?? undefined,
+      metadata: session.metadata ?? undefined,
+    }));
   }
 
   /**
@@ -57,7 +63,12 @@ export class SessionsService {
       .set({ lastAccessedAt: new Date() })
       .where(eq(sessions.id, sessionId));
 
-    return session;
+    // Convert null to undefined for TypeScript compatibility
+    return {
+      ...session,
+      geminiSessionId: session.geminiSessionId ?? undefined,
+      metadata: session.metadata ?? undefined,
+    };
   }
 
   /**
@@ -83,7 +94,7 @@ export class SessionsService {
         role: msg.role,
         content: msg.content,
         timestamp: msg.createdAt,
-        metadata: msg.metadata,
+        metadata: msg.metadata ?? undefined,
       })),
     };
   }
@@ -113,11 +124,12 @@ export class SessionsService {
       .returning();
 
     return {
+      sessionId: newMessage.sessionId,
       role: newMessage.role,
       content: newMessage.content,
       timestamp: newMessage.createdAt,
-      metadata: newMessage.metadata,
-    };
+      metadata: newMessage.metadata ?? undefined,
+    } as any;
   }
 
   /**
@@ -136,10 +148,16 @@ export class SessionsService {
    * Get sessions by project path
    */
   async findByProject(userId: string, projectPath: string): Promise<Session[]> {
-    return db.query.sessions.findMany({
+    const results = await db.query.sessions.findMany({
       where: and(eq(sessions.userId, userId), eq(sessions.projectPath, projectPath)),
       orderBy: [desc(sessions.lastAccessedAt)],
     });
+
+    return results.map(session => ({
+      ...session,
+      geminiSessionId: session.geminiSessionId ?? undefined,
+      metadata: session.metadata ?? undefined,
+    }));
   }
 
   /**
@@ -156,6 +174,14 @@ export class SessionsService {
       .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)))
       .returning();
 
-    return updated || null;
+    if (!updated) {
+      return null;
+    }
+
+    return {
+      ...updated,
+      geminiSessionId: updated.geminiSessionId ?? undefined,
+      metadata: updated.metadata ?? undefined,
+    };
   }
 }

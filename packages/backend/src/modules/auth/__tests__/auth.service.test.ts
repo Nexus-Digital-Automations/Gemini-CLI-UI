@@ -12,12 +12,6 @@ describe('AuthService', () => {
     authService = new AuthService();
   });
 
-  afterEach(async () => {
-    // Clean up test data
-    await db.delete(refreshTokens);
-    await db.delete(users);
-  });
-
   describe('register', () => {
     it('should create a new user with hashed password', async () => {
       const input = {
