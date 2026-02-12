@@ -1,0 +1,36 @@
+{
+  "name": "@gemini-ui/frontend",
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/**/*.{ts,tsx}",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@gemini-ui/shared": "file:../shared",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@tanstack/react-router": "^1.86.3",
+    "@tanstack/react-query": "^5.62.7",
+    "zustand": "^5.0.2",
+    "zod": "^3.23.8",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.5.4",
+    "vite": "^7.0.4",
+    "tailwindcss": "^4.1.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "vitest": "^2.1.8"
+  }
+}

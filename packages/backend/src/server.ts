@@ -79,8 +79,16 @@ app.get('/health', (req, res) => {
  * API routes
  */
 import authRoutes from './modules/auth/auth.routes.js';
+import projectsRoutes from './modules/projects/projects.routes.js';
+import sessionsRoutes from './modules/sessions/sessions.routes.js';
+import filesRoutes from './modules/files/files.routes.js';
+import gitRoutes from './modules/git/git.routes.js';
 
 app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectsRoutes);
+app.use('/api/sessions', sessionsRoutes);
+app.use('/api/files', filesRoutes);
+app.use('/api/git', gitRoutes);
 
 /**
  * Error handling
