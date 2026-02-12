@@ -70,9 +70,10 @@ export class ProjectsController {
         throw new AppError(401, 'Unauthorized', 'UNAUTHORIZED');
       }
 
+      const projectId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const project = await this.projectsService.findById(
         req.user.id,
-        req.params.id
+        projectId
       );
 
       if (!project) {
@@ -99,9 +100,10 @@ export class ProjectsController {
       }
 
       const input = UpdateProjectSchema.parse(req.body);
+      const projectId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const project = await this.projectsService.update(
         req.user.id,
-        req.params.id,
+        projectId,
         input
       );
 
@@ -128,9 +130,10 @@ export class ProjectsController {
         throw new AppError(401, 'Unauthorized', 'UNAUTHORIZED');
       }
 
+      const projectId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const success = await this.projectsService.delete(
         req.user.id,
-        req.params.id
+        projectId
       );
 
       if (!success) {

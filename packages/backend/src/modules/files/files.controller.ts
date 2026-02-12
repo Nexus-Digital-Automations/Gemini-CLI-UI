@@ -96,7 +96,7 @@ export class FilesController {
       const allowedRoots = await this.getAllowedRoots(req.user.id);
       const filesService = new FilesService(allowedRoots);
 
-      const listing = await filesService.listDirectory(dirPath);
+      const listing = await filesService.listDirectory({ path: dirPath });
 
       res.json({
         success: true,
@@ -128,7 +128,7 @@ export class FilesController {
       const allowedRoots = await this.getAllowedRoots(req.user.id);
       const filesService = new FilesService(allowedRoots);
 
-      const metadata = await filesService.getMetadata(filePath);
+      const metadata = await filesService.getMetadata({ path: filePath });
 
       res.json({
         success: true,

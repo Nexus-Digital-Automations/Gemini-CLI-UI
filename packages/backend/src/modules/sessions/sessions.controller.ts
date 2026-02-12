@@ -63,9 +63,10 @@ export class SessionsController {
         throw new AppError(401, 'Unauthorized', 'UNAUTHORIZED');
       }
 
+      const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const session = await this.sessionsService.findWithMessages(
         req.user.id,
-        req.params.id
+        sessionId
       );
 
       if (!session) {
@@ -92,9 +93,10 @@ export class SessionsController {
       }
 
       const messageData = ChatMessageSchema.parse(req.body);
+      const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const message = await this.sessionsService.addMessage(
         req.user.id,
-        req.params.id,
+        sessionId,
         messageData
       );
 
@@ -120,7 +122,8 @@ export class SessionsController {
         throw new AppError(401, 'Unauthorized', 'UNAUTHORIZED');
       }
 
-      const success = await this.sessionsService.delete(req.user.id, req.params.id);
+      const sessionId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const success = await this.sessionsService.delete(req.user.id, sessionId);
 
       if (!success) {
         throw new AppError(404, 'Session not found', 'SESSION_NOT_FOUND');

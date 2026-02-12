@@ -136,7 +136,7 @@ export class GitController {
       }
 
       const staged = req.query.staged === 'true';
-      const diff = await this.gitService.diff(repoPath, staged);
+      const diff = await this.gitService.diff(repoPath, undefined, staged);
 
       res.json({
         success: true,
