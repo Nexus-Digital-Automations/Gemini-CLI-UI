@@ -4,11 +4,16 @@
   "description": "A stylish web-based UI for Gemini CLI",
   "type": "module",
   "main": "server/index.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "concurrently --kill-others \"npm run server\" \"npm run client\"",
+    "dev": "npm run dev --workspace=packages/frontend",
+    "dev:backend": "npm run dev --workspace=packages/backend",
+    "dev:all": "concurrently --kill-others \"npm run dev:backend\" \"npm run dev\"",
     "server": "node server/index.js",
     "client": "vite --host",
-    "build": "vite build",
+    "build": "npm run build --workspaces",
     "preview": "vite preview",
     "start": "npm run build && npm run server"
   },
