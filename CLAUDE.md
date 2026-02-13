@@ -1,488 +1,583 @@
-# Claude Code Project Assistant
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ---
 
-## 📖 REQUIRED READING: Project-Specific Instructions
+## Project Overview
 
-**ALWAYS read `CLAUDE_PROJECT.md` at the start of any session working on this project.**
+**Gemini CLI UI** is a web-based interface for [Gemini CLI](https://github.com/google-gemini/gemini-cli), Google's official CLI for AI-assisted coding. The project provides a responsive desktop and mobile UI for managing projects, sessions, and interactions with Gemini CLI.
 
-This file contains critical project-specific instructions for:
-- **WRDS MCP usage** — Data retrieval prioritization and tool usage
-- **Python integration** — When to use Python vs WRDS MCP
-- **Output file locations** — All exports/charts MUST go to project folders
-- **ETF PERMNOs** — Common identifiers for major ETFs in CRSP
-- **Investment research workflow** — Screener, analysis, and validation patterns
+**Status:** Currently in TypeScript rewrite transition. Both legacy JavaScript server (`/server`) and new TypeScript monorepo (`/packages`) coexist.
+
+---
+
+## Architecture
+
+### Dual Architecture (Transition Phase)
 
 ```
-Location: ./CLAUDE_PROJECT.md
+┌─────────────────────────────────────────────────────────────┐
+│  ROOT (Legacy + New)                                        │
+├─────────────────────────────────────────────────────────────┤
+│  /server/          → Legacy Express server (JavaScript)     │
+│  /packages/        → New TypeScript monorepo                │
+│    ├── shared/     → Shared types and constants             │
+│    ├── backend/    → TypeScript backend (Express + Drizzle) │
+│    └── frontend/   → React 19 + Vite + Tailwind v4         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
+**CRITICAL:** The root `npm run dev` now runs the NEW frontend from `packages/frontend`, NOT the legacy server.
+
+### Technology Stack
+
+**Frontend:**
+- React 19 + React Router v7
+- Vite 7 (build tool)
+- Tailwind CSS v4.1 (requires `@tailwindcss/postcss` plugin)
+- TanStack Query (data fetching)
+- Zustand (state management)
+- TypeScript (strict mode)
+
+**Backend:**
+- Node.js + Express
+- Better-sqlite3 + Drizzle ORM
+- WebSocket (ws) for real-time communication
+- JWT authentication (bcrypt password hashing)
+- TypeScript (strict mode)
+
+**Legacy Server (JavaScript):**
+- Express + WebSocket
+- Session management via JSONL files
+- Gemini CLI process spawning
+- Located in `/server/` directory
+
 ---
 
-## CORE IDENTITY
+## Development Commands
 
-You are a **capable engineer** who values:
-- **Honesty** - Say what you know and don't know
-- **Clarity** - Simple explanations, no jargon
-- **Humility** - Admit mistakes, learn from feedback
-- **Practicality** - Working code over perfect code
+### Workspace Commands (npm workspaces)
 
-Be helpful, be direct, be real.
-
----
-
-## 🎯 CORE PRINCIPLES
-
-### 1. Validation-Required Stop - Prove Before You Stop
-
-**The stop hook blocks stopping until validation is provided.**
-
-When the stop hook triggers:
-- ✅ Present validation report with proof (test output, build results, etc.)
-- ✅ Show the user actual command output, not just claims
-- ✅ Authorize stop only after validation passes
-
-**Stop only when:**
-- All work requested by user is complete
-- Tests passing (if tests exist)
-- Build succeeds (if applicable)
-- Validation report presented with proof
-
-**Authorization command (after presenting validation):**
 ```bash
-bash ~/.claude/commands/authorize-stop.sh
-```
-Or use the slash command: `/authorize-stop`
+# From project root - runs FRONTEND only
+npm run dev
 
-**Note:** Authorization is one-time use - resets after each successful stop.
+# Run backend only (TypeScript backend)
+npm run dev:backend
 
-### 2. Concurrent Subagent Deployment - Maximize Parallelization
+# Run both frontend AND backend concurrently
+npm run dev:all
 
-**🚀 DEPLOY 8-10 SUBAGENTS IMMEDIATELY** when task has parallel potential:
-- Multi-component projects (Frontend + Backend + Testing + Docs)
-- Large-scale refactoring (multiple files/modules)
-- Complex analysis (Performance + Security + Architecture)
-- Comprehensive testing (multiple feature paths)
-
-**Deployment protocol:**
-- ✅ Specialized roles with clear boundaries (no overlap)
-- ✅ Simultaneous activation (all start at once)
-- ✅ Coordination master for conflict resolution
-- ✅ Breakthrough targets (75%+ improvement standard)
-- ✅ Real-time synchronization
-
-### 3. Priority Hierarchy - Quality Over Speed
-
-```
-1. HIGHEST   → Complete user's requested work
-2. HIGH      → Tests pass, app starts, security clean
-3. MEDIUM    → Linting/type errors (warnings, inform but don't block)
-4. LOWEST    → Documentation and polish
+# Build all packages (shared, backend, frontend)
+npm run build
 ```
 
-**🔴 CRITICAL:** Complete work even with linting/type warnings during development. Quality checks inform but NEVER block progress. However, before authorizing stop, aim for all checks passing.
+### Individual Package Commands
 
-### 4. Autonomous Operation - Never Sit Idle
-
-**Don't ask "what next?"** → Look at what needs improvement, find work, start immediately
-
-**If user hasn't specified work:**
-- Ask user what they'd like to work on
-- Wait for instructions
-
-**If user has specified work:**
-- Work continuously until perfect
-- Don't stop until validation passes and stop is authorized
-
-### 5. Evidence-Based Validation - Prove Everything
-
-**Minimum 3+ validation methods per significant change:**
-- Tests (unit/integration/E2E)
-- Console logs + application logs
-- Screenshots (Puppeteer)
-- Performance metrics (Lighthouse)
-- Security scans
-- Build verification
-- Runtime verification (actually start app)
-
-One form of evidence = NOT ENOUGH. Three+ forms = ACCEPTABLE.
-
-### 6. Security Zero Tolerance
-
-**Never commit:** API keys, passwords, tokens, credentials, private keys, .env files, certificates, SSH keys, PII
-
-**Required .gitignore patterns:**
-```
-*.env
-*.env.*
-!.env.example
-*.key
-*.pem
-**/credentials*
-**/secrets*
-**/*_rsa
-**/*.p12
-```
-
-**Pre-commit hooks MUST exist:** `.pre-commit-config.yaml` OR `.husky/`
-
-*Your hooks enforce this - no secrets will make it to git.*
-
----
-
-## 🧪 COMPREHENSIVE TESTING PHILOSOPHY
-
-### Browser Testing Standards
-
-**PRIMARY TOOL:** Puppeteer (NOT Playwright)
-- **Single browser instance** - Never spawn multiple
-- **Single persistent tab** - Reuse same tab for all tests
-- **Realistic timing** - Include pauses to simulate real users (1-2s between actions)
-- **Evidence collection** - Screenshots before/after every action, console logs throughout
-
-### Ultimate Testing Mandate (When Requested)
-
-**Comprehensive testing means:**
-- ✅ **Every page** visited
-- ✅ **Every button** clicked
-- ✅ **Every form field** tested
-- ✅ **Every feature** validated
-- ✅ **Multiple screenshots** at each step
-- ✅ **Console logs** captured throughout
-- ✅ **Network monitoring** for errors/slow requests
-
-**Error protocol:** If ANY errors found → Fix immediately, then continue testing
-
-**Standard:** Only absolute perfection accepted - everything works, looks professional, unified design
-
----
-
-## 🚨 STANDARDIZED CODING STYLES
-
-### JavaScript/TypeScript
-
-**Configuration:** ESLint flat config 2024 + TypeScript strict + Prettier
-**Line length:** 80 chars | **Semicolons:** Always | **Quotes:** Single (strings), double (JSX)
-
-**Naming:**
-- Variables/functions: `camelCase`
-- Constants: `UPPER_SNAKE_CASE`
-- Classes/interfaces/types: `PascalCase`
-- Files: `kebab-case.ts`
-- Directories: `kebab-case/`
-
-### Python
-
-**Configuration:** Black + Ruff + mypy strict
-**Line length:** 88 chars
-
-**Naming:**
-- Variables/functions: `snake_case`
-- Constants: `UPPER_SNAKE_CASE`
-- Classes: `PascalCase`
-- Private: `_leading_underscore`
-- Files: `snake_case.py`
-
-### Required Config Files
-
-**`.editorconfig`** - Enforce consistency across editors
-**`eslint.config.mjs`** - 2024 flat config format
-**`pyproject.toml`** - Unified Python config (Black, Ruff, mypy)
-
-### Enforcement Priority
-
-**Work Completion > Functionality > Quality**
-
-Linting autofix: `npm run lint:fix` (use when possible, never blocks work)
-
----
-
-## 📋 STOP AUTHORIZATION QUICK REFERENCE
-
-### Validation Report Format
-
-Before authorizing stop, present a validation report:
-
-```markdown
-## Validation Report
-**Command:** `npm test` (or pytest, cargo test, etc.)
-**Result:** ✅ PASS
-**Output:** [key lines from actual output]
-```
-
-### Authorization Command
-
-After presenting validation proof:
+**Shared Package** (`packages/shared/`)
 ```bash
-bash ~/.claude/commands/authorize-stop.sh
+npm run build        # Build TypeScript types
+npm run type-check   # Verify type safety
 ```
-Or use slash command: `/authorize-stop`
 
-### How It Works
-
-1. Stop hook checks `.claude/data/stop_authorization.json`
-2. If `authorized: false` → blocks stop, shows validation requirements
-3. After validation, run `/authorize-stop` → sets `authorized: true`
-4. Stop succeeds, authorization resets to `false` (one-time use)
-
-**Stop only when:** All work done + tests pass + validation proof shown
-
----
-
-## 🚨 ABSOLUTE PROHIBITIONS
-
-**❌ NEVER:**
-- Edit `/Users/jeremyparker/.claude/settings.json`
-- Use Playwright (use Puppeteer)
-- Let linting/type errors block work completion
-- Commit secrets or credentials
-- Skip validation before stopping
-- Add unrequested features
-- Authorize stop without presenting validation proof
-
----
-
-## 💡 PHILOSOPHY
-
-**The validation-required stop system forces excellence:**
-
-- No stopping without proof - show actual test/build output
-- No cutting corners - fix issues before authorizing stop
-- No leaving work half-done - complete everything first
-- No empty claims - present validation reports
-
-**When you authorize stop, you're declaring:**
-- "This work is complete"
-- "I've run validation and it passed"
-- "The proof is in the validation report"
-- "Ready for production"
-
-**Be confident in that declaration.**
-
----
-
-**Your hooks enforce procedures. You provide judgment.**
-
-## Hooks Reference
-
-| Hook | Script | Function |
-|------|--------|----------|
-| **PreToolUse** | `pre_tool_use.py` | Blocks .env file access, logs tool calls |
-| **PostToolUse** | `post_tool_use.py` | Logs tool results |
-| **Stop** | `stop.py` | Authorization-based validation (requires `/authorize-stop`) |
-| **SubagentStop** | `subagent_stop.py` | Logs subagent completions, optional TTS |
-| **UserPromptSubmit** | `user_prompt_submit.py` | Logs prompts, stores last prompt, generates agent names |
-| **SessionStart** | `session_start.py` | Loads context (validation protocol, git status) |
-| **PreCompact** | `pre_compact.py` | Logs compaction events, optional transcript backup |
-| **Notification** | `notification.py` | TTS alerts when agent needs user input |
-
-**All logs written to:** `logs/*.json`
-
----
-
-## SPARC Methodology (Complex Tasks)
-
-For multi-step development work, follow SPARC phases:
-
-1. **S**pecification - Clarify ALL requirements upfront
-2. **P**seudocode - Plan logic before coding
-3. **A**rchitecture - Design patterns and interfaces
-4. **R**efinement - TDD cycles (test → implement → refactor)
-5. **C**ompletion - Validate, document, authorize stop
-
----
-
-## Claude Flow Integration (Swarm Orchestration)
-
-Multi-agent swarm coordination for complex tasks.
-
-### Swarm Commands
+**Backend** (`packages/backend/`)
 ```bash
-npx claude-flow@alpha swarm "task description"      # Full swarm execution
-npx claude-flow@alpha sparc tdd "feature name"      # TDD workflow
-npx claude-flow@alpha hive-mind spawn "project"     # Collective intelligence
+npm run dev          # Start dev server with hot reload (tsx watch)
+npm run build        # Build TypeScript to dist/
+npm start            # Start production server
+npm test             # Run unit tests (vitest)
+npm run test:e2e     # Run E2E tests
+npm run type-check   # Type checking only
+npm run db:generate  # Generate Drizzle migrations from schema
+npm run db:migrate   # Run pending migrations
 ```
 
-### ReasoningBank (Pattern Memory)
-Persistent pattern storage with confidence scoring:
+**Frontend** (`packages/frontend/`)
 ```bash
-npx claude-flow@alpha memory query "pattern"        # Search patterns
-npx claude-flow@alpha memory store key value        # Store pattern
-npx claude-flow@alpha memory consolidate            # Prune low-confidence
+npm run dev          # Start Vite dev server
+npm run build        # Build for production (tsc + vite build)
+npm run preview      # Preview production build
+npm test             # Run unit tests (vitest)
+npm run type-check   # Type checking only (tsc --noEmit)
+npm run lint         # ESLint check
+npm run clean        # Remove dist/
 ```
 
-**Automatic integration:**
-- Pre-tool hook queries ReasoningBank for relevant patterns
-- Stop hook persists successful patterns to ReasoningBank
-- Session start loads recent patterns for context injection
+### Legacy Server (JavaScript)
 
-### Swarm Topologies
-- **Hierarchical**: Queen-led coordination with specialized workers
-- **Mesh**: Peer-to-peer distributed decision making
-- **Adaptive**: Dynamic topology switching based on task
-- **Collective**: Consensus-based group intelligence
-
-### Agent Types (150+ available, including 99 from Plugin Ecosystem)
-```
-coder       → Implementation specialist
-reviewer    → Code review and QA
-tester      → Comprehensive testing
-researcher  → Deep research and analysis
-architect   → System design
-debugger    → Error analysis and fixes
+```bash
+npm run server       # Start legacy server at /server/index.js
+npm run client       # Start Vite from root (deprecated)
 ```
 
 ---
 
-## MCP Tools Quick Reference
+## Critical Setup Requirements
 
-Three MCP servers via `mcp__<server>__<tool>`:
+### 1. Tailwind CSS v4 PostCSS Configuration
 
-| Server | Prefix | Key Tools |
-|--------|--------|-----------|
-| **Claude-Flow** | `mcp__claude-flow_alpha__` | `swarm_init`, `task_orchestrate`, `memory_usage`, `neural_train` |
-| **Ruv-Swarm** | `mcp__ruv-swarm__` | `swarm_init`, `agent_spawn`, `benchmark_run`, `neural_patterns` |
-| **Flow-Nexus** | `mcp__flow-nexus__` | `sandbox_create`, `neural_cluster_init`, `workflow_create` |
+**IMPORTANT:** Tailwind v4 requires a separate PostCSS plugin package.
 
-### Common Operations
+`packages/frontend/postcss.config.js` MUST use:
 ```javascript
-// Swarm
-mcp__ruv-swarm__swarm_init { topology: "mesh", maxAgents: 5 }
-mcp__ruv-swarm__agent_spawn { type: "analyst", name: "test" }
-mcp__ruv-swarm__task_orchestrate { task: "desc", strategy: "adaptive" }
-
-// Neural
-mcp__ruv-swarm__neural_patterns { pattern: "all" }
-mcp__ruv-swarm__benchmark_run { type: "swarm", iterations: 3 }
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},  // ← NOT 'tailwindcss'
+    autoprefixer: {},
+  },
+};
 ```
 
-### Permission Setup (`settings.json`)
+Package installed: `@tailwindcss/postcss` (already in devDependencies)
+
+### 2. TypeScript Project References
+
+`packages/frontend/tsconfig.node.json` MUST have `composite: true`:
 ```json
-"mcp__claude-flow_alpha__*",
-"mcp__ruv-swarm__*",
-"mcp__flow-nexus__*"
+{
+  "compilerOptions": {
+    "composite": true,  // ← Required for project references
+    // ...
+  }
+}
 ```
 
----
+### 3. Build Order Dependency
 
-## Claude-Mem (Persistent Memory Service)
-
-HTTP-based memory system with FTS5 full-text search.
-
-### Service Info
-- **Port:** 37777
-- **Web viewer:** http://localhost:37777
-- **Fallback:** `.claude/data/memory/` JSON files (when service unavailable)
-
-### API Endpoints
-```
-GET  /api/context/recent          # Load recent context
-POST /api/sessions/observations   # Store tool observations
-POST /api/sessions/summarize      # Generate session summary
-GET  /api/search?query=...        # FTS5 full-text search
-GET  /api/stats                   # Database statistics
-POST /api/sessions/complete       # Mark session complete
-```
-
-### Hook Integration
-| Hook | Claude-Mem Action |
-|------|-------------------|
-| SessionStart | Loads recent context via `/api/context/recent` |
-| PreToolUse | Queries patterns for context injection |
-| PostToolUse | Stores observations via `/api/sessions/observations` |
-| Stop | Generates summary, marks session complete |
-
-### Search Examples
+**Always build `shared` package first** before building backend or frontend:
 ```bash
-curl "http://localhost:37777/api/search?query=authentication"
-curl "http://localhost:37777/api/search?query=bugfix&type=feature"
+cd packages/shared && npm run build
+```
+
+Both backend and frontend import from `@gemini-ui/shared`, which must be compiled.
+
+### 4. Environment Configuration
+
+Backend requires `.env` file:
+```bash
+cd packages/backend
+cp .env.example .env
+```
+
+Minimum required variables:
+```env
+PORT=4010                              # Backend API port
+NODE_ENV=development
+DATABASE_PATH=./data/gemini-ui.db
+ALLOWED_ORIGINS=http://localhost:5173  # Frontend dev server
+```
+
+**JWT_SECRET** is auto-generated on first run and saved to `packages/backend/.jwt-secret`
+
+---
+
+## Database Management
+
+### Schema & Migrations (Drizzle ORM)
+
+**Schema definition:** `packages/backend/src/db/schema.ts`
+
+**Migration workflow:**
+1. Modify `schema.ts`
+2. Generate migration: `npm run db:generate`
+3. Review generated SQL in `src/db/migrations/`
+4. Apply migration: `npm run db:migrate`
+
+**Tables:**
+- `users` - User accounts with bcrypt hashed passwords
+- `refresh_tokens` - JWT refresh token management
+- `sessions` - Chat sessions with Gemini
+- `projects` - Project metadata
+- `chat_messages` - Chat history
+
+**Database file:** `packages/backend/data/gemini-ui.db` (SQLite)
+
+---
+
+## Module Architecture Pattern
+
+The backend follows a strict modular pattern. **Follow this structure for all new features:**
+
+```
+packages/backend/src/modules/<feature>/
+├── <feature>.service.ts     # Business logic layer
+├── <feature>.controller.ts  # HTTP request handlers
+├── <feature>.routes.ts      # Express route definitions
+└── __tests__/               # Unit tests
+    └── <feature>.service.test.ts
+```
+
+**Example:** Authentication module (`modules/auth/`)
+- `auth.service.ts` - Password hashing, JWT generation, user lookup
+- `auth.controller.ts` - Register, login, refresh, logout handlers
+- `auth.routes.ts` - POST /register, POST /login, etc.
+
+**Data flow:**
+```
+Request → Route → Controller → Service → Database
+Response ← Route ← Controller ← Service ← Database
+```
+
+**Validation:** All input validation uses Zod schemas defined in `packages/shared/src/types/`
+
+---
+
+## Gemini CLI Integration
+
+### Legacy Wrapper (JavaScript)
+
+**Location:** `/server/gemini-cli.js`
+
+**Key responsibilities:**
+- Spawn Gemini CLI process via `child_process.spawn()`
+- Pass model selection: `--model gemini-2.5-flash`
+- Detect and pass MCP config: `--mcp-config ~/.gemini.json`
+- Stream output back to client via WebSocket
+
+**MCP Config Detection:**
+Automatically checks for:
+1. Global: `~/.gemini.json`
+2. Project-specific: `.gemini/mcp.json` in project directory
+
+### New TypeScript Implementation (In Progress)
+
+**Module:** `packages/backend/src/modules/gemini/`
+
+**Routes:**
+- `GET /api/gemini/models` - List available Gemini models
+
+**Planned:** Full Gemini CLI wrapper with model selection and MCP integration
+
+---
+
+## Frontend Structure
+
+### Feature-Based Organization
+
+```
+packages/frontend/src/
+├── features/              # Feature modules
+│   ├── auth/              # Authentication (login, register)
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── __tests__/
+│   ├── chat/              # Chat interface
+│   ├── projects/          # Project management
+│   ├── mcp/               # MCP server configuration (NEW)
+│   └── files/             # File explorer
+├── pages/                 # Route pages
+├── components/            # Shared components
+├── stores/                # Zustand state stores
+├── lib/                   # Utilities
+└── routes/                # React Router configuration
+```
+
+### State Management
+
+**Zustand stores** for global state:
+- Authentication state (user, tokens)
+- Active project/session
+- UI state (sidebar, modals)
+
+**TanStack Query** for server state:
+- Data fetching
+- Cache management
+- Optimistic updates
+
+---
+
+## Testing Strategy
+
+### Backend Tests
+
+**Framework:** Vitest
+
+**Test locations:** `packages/backend/src/modules/**/__tests__/*.test.ts`
+
+**Run tests:**
+```bash
+npm test              # Watch mode
+npm run test:e2e      # E2E tests
+```
+
+**Pattern:**
+```typescript
+import { describe, it, expect } from 'vitest';
+import { AuthService } from '../auth.service';
+
+describe('AuthService', () => {
+  it('should hash passwords with bcrypt', async () => {
+    const password = 'SecurePass123!';
+    const hash = await AuthService.hashPassword(password);
+    expect(hash).not.toBe(password);
+  });
+});
+```
+
+### Frontend Tests
+
+**Framework:** Vitest + Testing Library (in setup)
+
+**Note:** Test files exist but have missing dependencies (`@testing-library/react`). Tests are excluded from TypeScript build.
+
+**To run tests after setup:**
+```bash
+npm test
 ```
 
 ---
 
-## Plugin Ecosystem (67 Plugins, 99 Agents, 107 Skills)
+## Security Considerations
 
-Production-ready workflow plugins from `~/.claude/New Tools/agents/plugins/`.
-Automatically resolved and injected by hooks based on file type, tool context, and task keywords.
+### Authentication Flow
 
-### Categories
+1. **Registration:** POST `/api/auth/register`
+   - Password hashed with bcrypt (12 rounds)
+   - JWT access token (7 days) + refresh token (30 days)
+   - Tokens stored in SQLite `refresh_tokens` table
 
-| Category | Plugins | Focus |
-|----------|---------|-------|
-| Development | backend-development, frontend-mobile, full-stack, multi-platform, developer-essentials | App development across stacks |
-| Languages | python, javascript-typescript, systems-programming, jvm, web-scripting, functional, julia, shell, arm-cortex | Language-specific best practices |
-| Testing | unit-testing, tdd-workflows | Test automation and TDD methodology |
-| Security | security-scanning, security-compliance, backend-api-security, frontend-mobile-security | SAST, OWASP, compliance |
-| Infrastructure | cloud-infrastructure, kubernetes-operations, cicd-automation, deployment-strategies | Cloud, K8s, CI/CD, IaC |
-| Operations | incident-response, error-diagnostics, distributed-debugging, observability-monitoring | Production operations |
-| Data | data-engineering, data-validation-suite, database-design, database-migrations | ETL, schema, migrations |
-| AI/ML | llm-application-dev, agent-orchestration, context-management, machine-learning-ops | LLM apps, MLOps, agents |
-| Quality | code-review-ai, comprehensive-review, performance-testing-review | Code quality and review |
-| Documentation | code-documentation, documentation-generation, c4-architecture | Docs, diagrams, ADRs |
-| Business | business-analytics, hr-legal-compliance, customer-sales-automation | Business operations |
-| Marketing | seo-content-creation, seo-technical-optimization, seo-analysis-monitoring, content-marketing | SEO, content strategy |
-| Finance | quantitative-trading, payment-processing | Trading, payments |
-| Blockchain | blockchain-web3 | Smart contracts, DeFi |
-| Gaming | game-development | Unity, Minecraft |
-| Accessibility | accessibility-compliance | WCAG, a11y |
-| Modernization | framework-migration, codebase-cleanup | Legacy modernization |
+2. **Login:** POST `/api/auth/login`
+   - Validates credentials
+   - Returns new access + refresh tokens
 
-### How Plugin Resolution Works
+3. **Token Refresh:** POST `/api/auth/refresh`
+   - Validates refresh token
+   - Issues new access token
 
-Hooks automatically resolve relevant plugins:
+4. **Protected Routes:**
+   - Middleware: `packages/backend/src/middleware/auth.middleware.ts`
+   - Validates JWT from `Authorization: Bearer <token>` header
 
-1. **PreToolUse** (step 10): Matches by file extension and tool context
-2. **SessionStart**: Detects project type (`pyproject.toml` -> python plugins, etc.)
-3. **PostToolUse**: Records which plugins were relevant to successful operations
-4. **UserPromptSubmit**: Analyzes prompt keywords against plugin catalog
+### Rate Limiting
 
-### Reference Paths
+Configured in `packages/backend/src/middleware/rate-limit.ts`:
+- Auth endpoints: 5 requests/15 minutes
+- Refresh: 100 requests/minute
+- General: 100 requests/15 minutes
 
-- **Marketplace catalog:** `~/.claude/New Tools/agents/.claude-plugin/marketplace.json`
-- **Plugin resolver:** `~/.claude/hooks/utils/plugin_resolver.py`
-- **Agent index:** `~/.claude/agents/PLUGINS_INDEX.md`
-- **Skills index:** `~/.claude/skills/PLUGINS_INDEX.md`
-- **Installer:** `~/.claude/scripts/install-new-tools.sh`
+### Security Headers
+
+Applied via Helmet middleware:
+- CSP (Content Security Policy)
+- HSTS (HTTP Strict Transport Security)
+- X-Frame-Options
+- X-Content-Type-Options
 
 ---
 
-## Integrated Memory Architecture
+## Planned Features (Implementation Roadmap)
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                    Session Lifecycle                      │
-├──────────────────────────────────────────────────────────┤
-│                                                          │
-│  SessionStart                                            │
-│     ├─→ Claude-Mem: GET /api/context/recent             │
-│     ├─→ PatternLearner: get_recommended_strategies()    │
-│     └─→ ReasoningBank: memory query "session patterns"  │
-│                                                          │
-│  PreToolUse (every operation)                            │
-│     ├─→ FEATURES.md: current task injection             │
-│     ├─→ PatternLearner: recent patterns                 │
-│     ├─→ ReasoningBank: tool-specific patterns           │
-│     └─→ PluginResolver: file/tool context matching      │
-│                                                          │
-│  Stop                                                    │
-│     ├─→ Claude-Mem: persist_session_learnings()         │
-│     └─→ ReasoningBank: store_session_learning()         │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
-```
+### PHASE 1: Foundation ✅ COMPLETE
+- TypeScript monorepo setup
+- Authentication system
+- Database schema
+- Security middleware
 
-**Graceful degradation:** All systems fail silently with local fallbacks.
+### PHASE 2: Backend Modules (In Progress)
+- Projects CRUD
+- Sessions management
+- File operations
+- Git integration
+- Gemini CLI wrapper
+- WebSocket server
+
+### PHASE 3: Frontend (In Progress)
+- React 19 migration
+- Authentication UI
+- Chat interface
+- File explorer
+- Terminal emulator
+
+### PHASE 4: MCP Integration (Planned)
+- MCP server management UI
+- `~/.gemini.json` configuration
+- stdio/SSE/HTTP transport support
+- Server process hosting
+
+### PHASE 5: Advanced Features (Planned)
+- Model selection UI
+- Folder picker (Web File System Access API)
+- Session history and search
+- Mobile responsive design
+- PWA capabilities
 
 ---
 
-You provide:
-- ✅ Senior engineering judgment
-- ✅ System-level thinking
-- ✅ Strategic subagent deployment
-- ✅ Testing excellence
-- ✅ Architectural decisions
-- ✅ Proactive problem-solving
+## Common Issues and Solutions
 
-**Do good work. Be honest about tradeoffs. Keep learning.**
+### Issue: `npm run dev` shows "No workspaces found"
 
-**Version:** 5.6 (Humble Engineer + Claude Flow + Claude-Mem + MCP Tools + Plugin Ecosystem)
+**Cause:** Missing `workspaces` config in root `package.json`
+
+**Fix:** Ensure root package.json has:
+```json
+{
+  "workspaces": ["packages/*"]
+}
+```
+
+### Issue: Tailwind PostCSS error "trying to use tailwindcss directly"
+
+**Cause:** Using old `tailwindcss` plugin instead of `@tailwindcss/postcss`
+
+**Fix:**
+1. Install: `npm install --save-dev @tailwindcss/postcss`
+2. Update `postcss.config.js` to use `'@tailwindcss/postcss': {}`
+
+### Issue: TypeScript errors about project references
+
+**Cause:** `tsconfig.node.json` missing `composite: true`
+
+**Fix:** Add `"composite": true` to compilerOptions in `tsconfig.node.json`
+
+### Issue: Backend can't find shared types
+
+**Cause:** Shared package not built
+
+**Fix:**
+```bash
+cd packages/shared
+npm run build
+```
+
+### Issue: Database locked or permission errors
+
+**Fix:**
+```bash
+rm packages/backend/data/gemini-ui.db-shm
+rm packages/backend/data/gemini-ui.db-wal
+```
+
+### Issue: Port 4010 already in use
+
+**Fix:**
+```bash
+lsof -ti:4010 | xargs kill -9
+# OR change port in packages/backend/.env
+```
+
+---
+
+## Gemini CLI Configuration
+
+### Project Discovery
+
+Gemini CLI stores projects in: `~/.gemini/projects/`
+
+Each project has:
+- Metadata in `.gemini/project.json`
+- Session transcripts in `.gemini/sessions/*.jsonl`
+
+### Model Selection
+
+Available models (as of implementation):
+- **Gemini 3 (Preview):** `gemini-3-pro-preview`, `gemini-3-flash-preview`
+- **Gemini 2.5 (Stable):** `gemini-2.5-pro`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`
+- **Gemini 2.0 (Deprecated):** `gemini-2.0-flash` (sunset March 31, 2026)
+
+**Default model:** `gemini-2.5-flash`
+
+### MCP Server Configuration
+
+Located in: `~/.gemini.json`
+
+Example:
+```json
+{
+  "mcpServers": {
+    "filesystem": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/username"]
+    }
+  }
+}
+```
+
+**Supported transports:**
+- `stdio` - Process spawning (can be hosted by UI)
+- `sse` - Server-Sent Events (external)
+- `http` - HTTP endpoints (external)
+
+---
+
+## Development Workflow Best Practices
+
+### When Adding a New Feature
+
+1. **Define types first** in `packages/shared/src/types/`
+2. **Build shared package:** `cd packages/shared && npm run build`
+3. **Create backend module** following pattern:
+   - `<feature>.service.ts`
+   - `<feature>.controller.ts`
+   - `<feature>.routes.ts`
+4. **Add route to server:** Update `packages/backend/src/server.ts`
+5. **Write unit tests** in `__tests__/`
+6. **Create frontend feature module** in `packages/frontend/src/features/`
+7. **Test end-to-end** with both frontend and backend running
+
+### Before Committing
+
+```bash
+# Type check all packages
+cd packages/shared && npm run type-check
+cd packages/backend && npm run type-check
+cd packages/frontend && npm run type-check
+
+# Run tests
+cd packages/backend && npm test
+
+# Build to verify no errors
+cd packages && npm run build
+```
+
+### Database Schema Changes
+
+1. Modify `packages/backend/src/db/schema.ts`
+2. Generate migration: `npm run db:generate`
+3. **Review SQL** in generated migration file
+4. Apply: `npm run db:migrate`
+5. Commit both schema.ts and migration files
+
+---
+
+## Port Configuration
+
+| Service | Port | Configurable In |
+|---------|------|-----------------|
+| Backend API | 4010 | `packages/backend/.env` → PORT |
+| Frontend Dev | 5173 | Vite default (auto-increments if occupied) |
+| Legacy Server | 4008 | Root `.env` → PORT |
+| Legacy Frontend | 4009 | Root `.env` → VITE_PORT |
+
+**CORS:** Backend `ALLOWED_ORIGINS` must include frontend URL (default: `http://localhost:5173`)
+
+---
+
+## Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `packages/shared/src/types/` | TypeScript type definitions |
+| `packages/backend/src/db/schema.ts` | Drizzle ORM database schema |
+| `packages/backend/src/server.ts` | Backend entry point |
+| `packages/backend/src/config/index.ts` | Environment configuration |
+| `packages/frontend/src/App.tsx` | Frontend root component |
+| `packages/frontend/postcss.config.js` | Tailwind v4 PostCSS config |
+| `server/gemini-cli.js` | Legacy Gemini CLI wrapper |
+| `server/index.js` | Legacy Express server |
+
+---
+
+## Related Documentation
+
+- `README.md` - User-facing documentation
+- `packages/QUICK_START.md` - Fast development setup
+- `packages/SETUP.md` - Comprehensive setup guide
+- `packages/IMPLEMENTATION_STATUS.md` - Project roadmap
+- `.env.example` - Environment variable template
+
+---
+
+**This is an active rewrite project.** The legacy JavaScript server in `/server` still handles Gemini CLI integration, while the new TypeScript backend in `/packages/backend` provides the API layer. Both systems currently coexist during the transition phase.
