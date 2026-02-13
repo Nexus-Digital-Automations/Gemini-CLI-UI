@@ -4,6 +4,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import type { CreateProjectInput, UpdateProjectInput, Project } from '@gemini-ui/shared';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 
 /**
  * Convert database project (null fields) to Project type (undefined fields)
@@ -158,5 +159,91 @@ export class ProjectsService {
         project.description?.toLowerCase().includes(lowerQuery) ||
         project.tags?.some((tag) => tag.toLowerCase().includes(lowerQuery))
     );
+  }
+
+  /**
+   * Validate a project path
+   */
+  async validateProjectPath(inputPath: string): Promise<{
+    valid: boolean;
+    error?: string;
+    normalized?: string;
+    exists?: boolean;
+  }> {
+    try {
+      // Check if path is absolute
+      if (!path.isAbsolute(inputPath)) {
+        return {
+          valid: false,
+          error: 'Path must be absolute (start with / or drive letter)',
+        };
+      }
+
+      // Normalize the path
+      const normalized = path.resolve(inputPath);
+
+      // Security check: Ensure path is within allowed roots
+      // Allow user home directory and subdirectories
+      const homeDir = os.homedir();
+      const isInHome = normalized.startsWith(homeDir);
+
+      // Allow /Users on macOS, /home on Linux
+      const isInUsers =
+        normalized.startsWith('/Users/') || normalized.startsWith('/home/');
+
+      if (!isInHome && !isInUsers) {
+        return {
+          valid: false,
+          error: 'Path must be within your home directory for security',
+          normalized,
+        };
+      }
+
+      // Check if path exists
+      let exists = false;
+      try {
+        const stats = await fs.stat(normalized);
+        exists = true;
+
+        // Verify it's a directory
+        if (!stats.isDirectory()) {
+          return {
+            valid: false,
+            error: 'Path must be a directory, not a file',
+            normalized,
+            exists: true,
+          };
+        }
+      } catch (error) {
+        // Path doesn't exist - that's okay for validation
+        exists = false;
+      }
+
+      // Check read permissions if path exists
+      if (exists) {
+        try {
+          await fs.access(normalized, fs.constants.R_OK);
+        } catch {
+          return {
+            valid: false,
+            error: 'Directory exists but is not readable (permission denied)',
+            normalized,
+            exists: true,
+          };
+        }
+      }
+
+      return {
+        valid: true,
+        normalized,
+        exists,
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error:
+          error instanceof Error ? error.message : 'Failed to validate path',
+      };
+    }
   }
 }

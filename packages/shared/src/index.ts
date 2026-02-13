@@ -20,3 +20,12 @@ export * from './types/file.types.js';
 
 // Git types
 export * from './types/git.types.js';
+
+// Gemini types
+export * from './types/gemini.types.js';
+
+// MCP types
+export * from './types/mcp.types.js';
+
+// Gemini model constants
+export * from './constants/gemini-models.js';

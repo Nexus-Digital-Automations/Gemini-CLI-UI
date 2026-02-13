@@ -83,12 +83,16 @@ import projectsRoutes from './modules/projects/projects.routes.js';
 import sessionsRoutes from './modules/sessions/sessions.routes.js';
 import filesRoutes from './modules/files/files.routes.js';
 import gitRoutes from './modules/git/git.routes.js';
+import geminiRoutes from './modules/gemini/gemini.routes.js';
+import mcpRoutes from './modules/mcp/mcp.routes.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/git', gitRoutes);
+app.use('/api/gemini', geminiRoutes);
+app.use('/api/mcp', mcpRoutes);
 
 /**
  * Error handling

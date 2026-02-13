@@ -178,9 +178,28 @@ async function spawnGemini(command, options = {}, ws) {
     }
     
     // Add model for all sessions (both new and resumed)
-    // Debug - Model from options and resume session
-    const modelToUse = options.model || 'gemini-2.5-flash';
-    // Debug - Using model
+    // Validate model against supported list
+    const VALID_MODELS = [
+      'gemini-3-pro-preview',
+      'gemini-3-flash-preview',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro-tts',
+      'gemini-2.5-flash-tts',
+      'gemini-2.0-flash', // Deprecated but still supported
+    ];
+
+    const requestedModel = options.model || 'gemini-2.5-flash';
+    const modelToUse = VALID_MODELS.includes(requestedModel)
+      ? requestedModel
+      : 'gemini-2.5-flash';
+
+    // Log warning if deprecated model is used
+    if (modelToUse === 'gemini-2.0-flash') {
+      console.warn('⚠️  Warning: gemini-2.0-flash is deprecated and will sunset on March 31, 2026');
+    }
+
     args.push('--model', modelToUse);
     
     // Add --yolo flag if skipPermissions is enabled

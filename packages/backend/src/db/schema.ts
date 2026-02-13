@@ -31,6 +31,7 @@ export const sessions = sqliteTable('sessions', {
     .references(() => users.id, { onDelete: 'cascade' }),
   projectPath: text('project_path').notNull(),
   geminiSessionId: text('gemini_session_id'),
+  model: text('model').notNull().default('gemini-2.5-flash'),
   metadata: text('metadata', { mode: 'json' }).$type<Record<string, unknown>>(),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()

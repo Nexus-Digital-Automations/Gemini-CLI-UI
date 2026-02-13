@@ -50,4 +50,10 @@ router.put('/:id', projectsController.update);
  */
 router.delete('/:id', projectsController.delete);
 
+/**
+ * POST /api/projects/validate
+ * Validate a project path
+ */
+router.post('/validate', projectsController.validatePath);
+
 export default router;

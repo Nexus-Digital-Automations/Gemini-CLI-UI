@@ -196,4 +196,27 @@ export class ProjectsController {
       next(error);
     }
   };
+
+  /**
+   * Validate project path
+   * POST /api/projects/validate
+   */
+  validatePath = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { path } = req.body;
+
+      if (!path || typeof path !== 'string') {
+        throw new AppError(400, 'Path is required and must be a string', 'INVALID_PATH');
+      }
+
+      const validation = await this.projectsService.validateProjectPath(path);
+
+      res.json({
+        success: true,
+        data: validation,
+      } as ApiResponse);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
